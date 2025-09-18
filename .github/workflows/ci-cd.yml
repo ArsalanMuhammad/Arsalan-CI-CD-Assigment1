@@ -1,54 +1,33 @@
-name: Multi-Branch CI/CD
+name: CI
 
 on:
   push:
-    branches:
-      - main
-      - dev
+    branches: [ main, dev ]
   pull_request:
+    branches: [ main, dev ]
 
 jobs:
-  ci:
+  build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 18
-      - run: npm install
-      - run: npm run lint
-      - run: npm run test
-      - name: Build artifact
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
-        run: npm run build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: build-artifact
-          path: build/
 
-  deploy_qa:
-    needs: ci
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/dev'
-    concurrency:
-      group: deploy-${{ github.ref }}
-      cancel-in-progress: true
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: build-artifact
-      - run: echo "Deploying to QA using artifact"
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-  deploy_prod:
-    needs: ci
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    concurrency:
-      group: deploy-${{ github.ref }}
-      cancel-in-progress: true
-    steps:
-      - uses: actions/download-artifact@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v3
         with:
-          name: build-artifact
-      - run: echo "Deploying to Production using artifact"
-      - run: echo "Slack notification simulated"
+          node-version: '18'  # or your desired version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fix eslint permissions
+        run: chmod +x ./node_modules/.bin/eslint || true
+
+      - name: Run lint
+        run: npx eslint src/
+
+      - name: Run tests
+        run: npm test
+
